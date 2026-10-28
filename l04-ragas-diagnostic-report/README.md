@@ -1,0 +1,52 @@
+# L04 · RAGAS Diagnostic Report — PayPilot
+
+Набір із ДЗ_2: [l03-golden-dataset](https://github.com/QA-Kyrylo24/Paypilot-Agent-Testing/tree/main/l03-golden-dataset) (той самий репозиторій, сусідня тека)
+
+## Запуск
+Покладіть `golden.jsonl` у `~/paypilot/l03/sets/` і виконайте:
+
+    docker compose run --rm eval --set golden --profile clean
+
+`set_hash`: `7c42a60056c4`
+
+## Retrieval-кейси
+| id | Джерело | Файл і рядок корпусу |
+| --- | --- | --- |
+| RET-H01 | complaint (C-13) | tariffs.md, `\| Tier 3 \| 0.5% \| EUR 5,000 \|` |
+| RET-H02 | complaint (C-14) | disputes.md, `\| duplicate_charge \| 60 \|` |
+| RET-H03 | lab (вправа 1) | tariffs.md, `\| Tier 3 \| 0.5% \| EUR 5,000 \|` |
+| RET-H04 | lab (вправа 2) | tariffs.md, `\| Tier 2 \| 0.9% \| EUR 1,000 \|` |
+| RET-H05 | corpus | limits.md, `\| Tier 1 \| EUR 5,000 \| EUR 50,000 \|` |
+| RET-H06 | corpus | disputes.md, `\| unauthorized_debit \| 56 \|` |
+| RET-H07 | corpus | reason-codes.md, секція `duplicate_charge` |
+| RET-H08 | corpus | cards.md, секція `Contactless limits` |
+| RET-H09 | corpus | fees-detail.md, секція `Fee refunds` |
+| RET-H10 | corpus | tariffs.md, `\| SEPA \| EUR 0.35 \| 0% \|` |
+| RET-H11 | corpus | accounts.md, секція `Authorisation holds` |
+| RET-H12 | corpus | limits.md, `\| Tier 3 \| EUR 100,000 \| EUR 1,000,000 \|` |
+
+## Прогони
+| Прогін | Профіль | Результат | Звіт |
+| --- | --- | --- | --- |
+| Baseline | `clean` | — (ще не прогнано) | `reports/…` |
+| Профіль заняття | `lesson-04` | — (ще не прогнано) | `reports/…` |
+
+Прогноз до прогону `lesson-04` (28.10.2026, до запуску нижче):
+
+Перевірено напряму через `app/rag/retriever.py:_chunk_broken` (160-символьні чанки `kb_broken`), яким саме чанком кожен факт накривається і чи розрізаний він на межі чанка — не вгадано:
+
+**Впадуть (контент фізично розрізаний на межі чанка, незалежно від рангування):**
+- `RET-H01` — алаунс tier3 (`EUR 5,000`) обрізаний рівно на межі `tariffs.md#b3`/`#b4` («…EUR 5» | «,000…»), той самий механізм, що в C-13/вправі 1.
+- `RET-H07` — фраза «Evidence: references of both transactions» розірвана посередині слова на межі `reason-codes.md#b3`/`#b4` («…refere» | «nces…»).
+- `RET-H11` — речення «…places a hold for up to 7 calendar days» розірване на межі `accounts.md#b3`/`#b4` («…places a» | « hold for up to 7…»).
+- `RET-H02` і `RET-H06` — обидва з `disputes.md`: сама потрібна таблиця ціла всередині `#b2`/`#b3`, **але** вступний чанк `#b1` («Reason codes and chargeback windows… A dispute opened after the windo[w]») сильно перетинається словами «window»/«dispute» із будь-яким запитом про вікно спору і вже підтверджено — переміг у рангуванні над `#b2` для `RET-H02` (живий прогін C-14: трейс `4a7d3d35`, фрагмент `disputes.md#b1`, не `#b2`). Той самий ризик («вступний чанк того ж документа переважає чанк із даними») переносимо і на `RET-H06` того самого документа.
+
+**Не впадуть (факт цілий усередині одного чанка, і цей чанк уже спостерігався переможцем рангування для подібних запитів):**
+- `RET-H03`, `RET-H04` — `tariffs.md#b3` стабільно виграє top-1 для будь-якого запиту про спред/tier: спостерігали це тричі наживо (вправа 1, обидві спроби C-13) з різним формулюванням запиту.
+- `RET-H05`, `RET-H12` — `limits.md#b3`: вступний чанк `#b1` цього документа — нейтральна проза без сильного перетину зі словом «ліміт» по tier, конкурента на кшталт `disputes.md#b1` тут немає.
+- `RET-H08` — `cards.md#b3` містить і заголовок секції («Contactless limits»), і сам факт («EUR 50», «PIN») — сильний прямий збіг.
+- `RET-H09` — `fees-detail.md#b4` містить і заголовок («Fee refunds»), і «Verta error» — сильний прямий збіг.
+- `RET-H10` — `tariffs.md#b4` містить унікальний токен «SEPA», що більше ніде в корпусі не зустрічається — малий ризик програти рангування.
+
+Коміт із прогнозом: `<hash>` (28.10.2026, до прогону нижче — перевіряється часом коміту в `git log`).
+Що впало: `<id>`. Розбіжність із прогнозом: `<чим пояснюється або «немає»>`
