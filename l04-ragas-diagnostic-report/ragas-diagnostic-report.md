@@ -24,7 +24,7 @@
 індекси        kb_clean (фрагменти за секціями) · kb_broken (фрагменти по 160 символів)
 профілі        clean · lesson-04
 модель         claude-haiku-5-5 (провайдер: anthropic, LLM_PROVIDER=anthropic у .env стенду; LLM_MODEL не задано → дефолт провайдера, app/agent/providers/anthropic_provider.py:DEFAULT_MODEL)
-набір          golden.jsonl, ... кейсів, з них ... шару retrieval · set_hash ... (буде дописано)
+набір          golden.jsonl, 48 кейсів, з них 12 шару retrieval · set_hash `685b307f47f3`
 дата прогонів  27.10.2026 (кейси 1-4) · 28.10.2026 (решта вимірювань)
 ```
 
